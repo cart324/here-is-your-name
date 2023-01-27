@@ -1,5 +1,4 @@
 # here-is-your-name
-mejiro mcqueen is so cute and beautiful
 
 초반, 중반 속도 : 표준속도×각질보정+지능난수
 
@@ -11,9 +10,11 @@ mejiro mcqueen is so cute and beautiful
 
 감속도 : 초반-0.8/중반-1.0/종반-1.2
 
+---
 
 지구력 : 경기거리+스태미나×각질보정×0.8
 
+---
 
 스킬 발동 확률 : 100-9000/지능
 
@@ -25,6 +26,7 @@ mejiro mcqueen is so cute and beautiful
 
 *선두이며 뒤와의 차이가 4.5m 이내일때 스피드 업(속도 1.04배), 2위 이하일때 추격(속도 1.05배)
 
+---
 
 내리막 가속모드 돌입 확률 : 지능*0.04
 
@@ -32,5 +34,6 @@ mejiro mcqueen is so cute and beautiful
 
 *내리막 가속모드에선 스태미나 소모 40% 감소, 속도 0.35 증가
 
+---
 
 지능 난수 평균 : (지능/5500×log10(지능×0.1)-0.65/2)×0.01×표준속도
