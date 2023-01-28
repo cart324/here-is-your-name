@@ -91,7 +91,7 @@ class Somethings(discord.Cog):
         condition_multiplier = self.condition_dic.get(condition)
 
         stats = [int(x * condition_multiplier) for x in stats]
-        stats[4] = stats[4] * intelligence_multiplier
+        stats[4] = int(stats[4] * intelligence_multiplier)
         standard_speed = 22 - race_distance / 1000
 
         speeds = [round(standard_speed * strategy_list[0][0], 2),
