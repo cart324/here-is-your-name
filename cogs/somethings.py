@@ -91,7 +91,7 @@ class Somethings(discord.Cog):
         condition_multiplier = self.condition_dic.get(condition)
 
         stats = [int(x * condition_multiplier) for x in stats]
-        stats[4] = int(stats[4] * intelligence_multiplier)
+        multi_intel = int(stats[4] * intelligence_multiplier)
         standard_speed = 22 - race_distance / 1000
 
         speeds = [round(standard_speed * strategy_list[0][0], 2),
@@ -103,11 +103,11 @@ class Somethings(discord.Cog):
                   round(basic_acceleration * strategy_list[1][2], 4)]
         basic_hp = race_distance + stats[2] * strategy_list[2] * 0.8
         hp = round(basic_hp * (1 + healing * 0.01), 1)
-        if 100 - 9000 / stats[4] < 20:
+        if 100 - 9000 / multi_intel < 20:
             skill_activation = 20
         else:
-            skill_activation = round(100 - 9000 / stats[4], 2)
-        excitement_percentage = round((6.5 / math.log10(stats[4] * 0.1 + 1)) ** 2, 2)
+            skill_activation = round(100 - 9000 / multi_intel, 2)
+        excitement_percentage = round((6.5 / math.log10(multi_intel * 0.1 + 1)) ** 2, 2)
 
         embed = discord.Embed(title="status", color=0xffffff)
         embed.add_field(name='우마무스메 정보', value=f"경주 거리 : {race_distance} | 각질 : {strategy} | 스탯 : {stats} | "
