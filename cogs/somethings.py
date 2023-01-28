@@ -110,8 +110,7 @@ class Somethings(discord.Cog):
             skill_activation = round(100 - 9000 / stats[4], 2)
         excitement_percentage = round((6.5 / math.log10(stats[4] * 0.1 + 1)) ** 2, 2)
 
-        embed = discord.Embed(title="status", color=0xffffff)
-        embed.add_field(name=horse_girl_name, value="여기요 여기 ")
+        embed = discord.Embed(title=horse_girl_name, color=0xffffff)
         embed.add_field(name='우마무스메 정보', value=f"경주 거리 : {race_distance} | 각질 : {strategy} | 스탯 : {stats} "
                                                f"적성 : {track_aptitude}, {distance_aptitude}, {strategy_aptitude} | "
                                                f"컨디션 : {condition} | 회복량 : {healing}%", inline=False)
