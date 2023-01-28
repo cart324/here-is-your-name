@@ -70,6 +70,7 @@ class Somethings(discord.Cog):
 
     @discord.slash_command(description="엑셀계산기 이식", guild_ids=[907936221446148138, 792068683580440587])
     async def stat(self, chat,
+                   horse_girl_name: discord.Option(str, "따님 이름을 입력하세요"),
                    strategy: discord.Option(str, "각질을 선택하세요.", choices=["도주", "선행", "선입", "추입"]),
                    race_distance: discord.Option(int, "경주거리를 입력하세요."),
                    speed: discord.Option(int, "스피드 스탯을 입력하세요."),
@@ -110,7 +111,8 @@ class Somethings(discord.Cog):
         excitement_percentage = round((6.5 / math.log10(stats[4] * 0.1 + 1)) ** 2, 2)
 
         embed = discord.Embed(title="status", color=0xffffff)
-        embed.add_field(name='우마무스메 정보', value=f"경주 거리 : {race_distance} | 각질 : {strategy} | 스탯 : {stats} | "
+        embed.add_field(name= f"{horse_girl_name}")
+        embed.add_field(name='우마무스메 정보', value=f"경주 거리 : {race_distance} | 각질 : {strategy} | 스탯 : {stats} "
                                                f"적성 : {track_aptitude}, {distance_aptitude}, {strategy_aptitude} | "
                                                f"컨디션 : {condition} | 회복량 : {healing}%", inline=False)
         embed.add_field(name='최고속도', value=f'초반 : {speeds[0]}m/s | 중반 : {speeds[1]}m/s | 스퍼트 : {speeds[2]}m/s', inline=False)
