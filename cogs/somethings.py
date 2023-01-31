@@ -18,6 +18,7 @@ def dist_accel(aptitude):
 
 class YesNo(discord.ui.View):
     def __init__(self, db_edit1, db_edit2, embed_text):
+        super().__init__()
         self.db_edit1 = db_edit1
         self.db_edit2 = db_edit2
         self.embed_text = embed_text
