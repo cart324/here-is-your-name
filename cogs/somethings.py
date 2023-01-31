@@ -22,11 +22,9 @@ class YesNo(discord.ui.View):
         self.db_edit1 = db_edit1
         self.db_edit2 = db_edit2
         self.embed_text = embed_text
-    
+
     @discord.ui.button(label="네", style=discord.ButtonStyle.primary)
     async def yes(self, button, interaction):
-        for child in self.children:
-            child.disabled = True
         data = sqlite3.connect("data/user_slot.db")
         DB = data.cursor()
         DB.execute(self.db_edit1)
@@ -35,14 +33,11 @@ class YesNo(discord.ui.View):
         data.close()
         embed = discord.Embed(title="덮어쓰기 성공", color=0xffffff)
         embed.add_field(name="신규 우마무스메 정보", value=self.embed_text, inline=False)
-        await interaction.response.edit_message(embed=embed, view=self)
+        await interaction.response.edit_message(embed=embed, view=None)
 
     @discord.ui.button(label="아니요", style=discord.ButtonStyle.primary)
     async def no(self, button, interaction):
-        for child in self.children:
-            child.disabled = True
-        embed = discord.Embed(title="취소되었습니다.", color=0xffffff)
-        await interaction.response.edit_message(embed=embed, view=self)
+        await interaction.response.edit_message(embed=None, content="취소되었습니다.", view=None)
 
 
 class Somethings(discord.Cog):
@@ -51,7 +46,8 @@ class Somethings(discord.Cog):
         data = sqlite3.connect("data/user_slot.db")
         DB = data.cursor()
         DB.execute("CREATE TABLE IF NOT EXISTS umamusume\
-                   (user_slot PRIMARY KEY, strategy text, stat text, aptitude text, healing real)")
+                   (user_id int, slot int, strategy text, stat text, aptitude text, healing real, \
+                   PRIMARY KEY (user_id, slot))")
         data.commit()
         data.close()
 
@@ -166,7 +162,7 @@ class Somethings(discord.Cog):
 
     @discord.slash_command(description="우마무스메 저장", guild_ids=[907936221446148138, 792068683580440587])
     async def save(self, chat,
-                   slot: discord.Option(str, "저장할 슬롯을 골라주세요.", choices=["1", "2", "3", "4", "5"]),
+                   slot: discord.Option(int, "저장할 슬롯을 골라주세요.", choices=[1, 2, 3, 4, 5]),
                    strategy: discord.Option(str, "각질을 선택하세요.", choices=["도주", "선행", "선입", "추입"]),
                    speed: discord.Option(int, "스피드 스탯을 입력하세요."),
                    power: discord.Option(int, "파워 스탯을 입력하세요."),
@@ -185,12 +181,12 @@ class Somethings(discord.Cog):
         aptitudes = track_aptitude + distance_aptitude + strategy_aptitude
         data = sqlite3.connect("data/user_slot.db")
         DB = data.cursor()
-        DB.execute("SELECT * FROM umamusume WHERE user_slot=?", (str(chat.author.id) + "/" + slot,))
+        DB.execute("SELECT * FROM umamusume WHERE user_id=? and slot=?", (chat.author.id, slot))
         exist = DB.fetchone()
-        
-        db_edit1 = "DELETE FROM umamusume WHERE user_slot='%s'" % (str(chat.author.id) + "/" + slot)
-        db_edit2 = "INSERT INTO umamusume VALUES('%s','%s','%s','%s','%s')" % \
-                   (str(chat.author.id) + "/" + slot, strategy, str(stats), aptitudes, healing)
+
+        db_edit1 = "DELETE FROM umamusume WHERE user_id='%s' and slot='%s'" % (chat.author.id, slot)
+        db_edit2 = "INSERT INTO umamusume VALUES('%s','%s','%s','%s','%s','%s')" % \
+                   (chat.author.id, slot, strategy, str(stats), aptitudes, healing)
         embed_text = f"저장 슬롯 : {slot} | 각질 : {strategy} | 스탯 : {stats} | \
                                           적성 : {track_aptitude}, {distance_aptitude}, {strategy_aptitude} | \
                                           회복량 : {healing}%"
@@ -199,8 +195,8 @@ class Somethings(discord.Cog):
             print(db_edit2)
             embed = discord.Embed(title="덮어씌우시겠습니까?", color=0xffffff)
             embed.add_field(name='기존 우마무스메 정보',
-                            value=f"저장 슬롯 : {exist[0][19:]} | 각질 : {exist[1]} | 스탯 : {exist[2]} | \
-                                          적성 : {exist[3]} | 회복량 : {exist[4]}%", inline=False)
+                            value=f"저장 슬롯 : {str(exist[1])} | 각질 : {exist[2]} | 스탯 : {exist[3]} | \
+                                          적성 : {exist[4]} | 회복량 : {exist[5]}%", inline=False)
             embed.add_field(name='신규 우마무스메 정보', value=embed_text, inline=False)
             await chat.respond(embed=embed, view=YesNo(db_edit1, db_edit2, embed_text))
         else:
