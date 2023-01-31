@@ -16,24 +16,24 @@ def dist_accel(aptitude):
         return 1
 
 
-db_edit1 = ""
-db_edit2 = ""
-embed_text = ""
-
-
 class YesNo(discord.ui.View):
+    def __init__(self, db_edit1, db_edit2, embed_text):
+        self.db_edit1 = db_edit1
+        self.db_edit2 = db_edit2
+        self.embed_text = embed_text
+    
     @discord.ui.button(label="네", style=discord.ButtonStyle.primary)
     async def yes(self, button, interaction):
         for child in self.children:
             child.disabled = True
         data = sqlite3.connect("data/user_slot.db")
         DB = data.cursor()
-        DB.execute(db_edit1)
-        DB.execute(db_edit2)
+        DB.execute(self.db_edit1)
+        DB.execute(self.db_edit2)
         data.commit()
         data.close()
         embed = discord.Embed(title="덮어쓰기 성공", color=0xffffff)
-        embed.add_field(name="신규 우마무스메 정보", value=embed_text, inline=False)
+        embed.add_field(name="신규 우마무스메 정보", value=self.embed_text, inline=False)
         await interaction.response.edit_message(embed=embed, view=self)
 
     @discord.ui.button(label="아니요", style=discord.ButtonStyle.primary)
@@ -186,9 +186,7 @@ class Somethings(discord.Cog):
         DB = data.cursor()
         DB.execute("SELECT * FROM umamusume WHERE user_slot=?", (str(chat.author.id) + "/" + slot,))
         exist = DB.fetchone()
-        global db_edit1
-        global db_edit2
-        global embed_text
+        
         db_edit1 = "DELETE FROM umamusume WHERE user_slot='%s'" % (str(chat.author.id) + "/" + slot)
         db_edit2 = "INSERT INTO umamusume VALUES('%s','%s','%s','%s','%s')" % \
                    (str(chat.author.id) + "/" + slot, strategy, str(stats), aptitudes, healing)
@@ -203,7 +201,7 @@ class Somethings(discord.Cog):
                             value=f"저장 슬롯 : {exist[0][19:]} | 각질 : {exist[1]} | 스탯 : {exist[2]} | \
                                           적성 : {exist[3]} | 회복량 : {exist[4]}%", inline=False)
             embed.add_field(name='신규 우마무스메 정보', value=embed_text, inline=False)
-            await chat.respond(embed=embed, view=YesNo())
+            await chat.respond(embed=embed, view=YesNo(db_edit1, db_edit2, embed_text))
         else:
             DB.execute(db_edit2)
             embed = discord.Embed(title="저장 성공", color=0xffffff)
