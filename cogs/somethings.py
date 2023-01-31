@@ -2,11 +2,57 @@ import discord
 from discord.ext import commands
 import random
 import math
+import sqlite3
+
+
+def dist_accel(aptitude):
+    if aptitude == "E":
+        return 0.6
+    elif aptitude == "F":
+        return 0.5
+    elif aptitude == "G":
+        return 0.4
+    else:
+        return 1
+
+
+db_edit1 = ""
+db_edit2 = ""
+embed_text = ""
+
+
+class YesNo(discord.ui.View):
+    @discord.ui.button(label="네", style=discord.ButtonStyle.primary)
+    async def yes(self, button, interaction):
+        for child in self.children:
+            child.disabled = True
+        data = sqlite3.connect("data/user_slot.db")
+        DB = data.cursor()
+        DB.execute(db_edit1)
+        DB.execute(db_edit2)
+        data.commit()
+        data.close()
+        embed = discord.Embed(title="덮어쓰기 성공", color=0xffffff)
+        embed.add_field(name="신규 우마무스메 정보", value=embed_text, inline=False)
+        await interaction.response.edit_message(embed=embed, view=self)
+
+    @discord.ui.button(label="아니요", style=discord.ButtonStyle.primary)
+    async def no(self, button, interaction):
+        for child in self.children:
+            child.disabled = True
+        embed = discord.Embed(title="취소되었습니다.", color=0xffffff)
+        await interaction.response.edit_message(embed=embed, view=self)
 
 
 class Somethings(discord.Cog):
     def __init__(self, client):
         self.client = client
+        data = sqlite3.connect("data/user_slot.db")
+        DB = data.cursor()
+        DB.execute("CREATE TABLE IF NOT EXISTS umamusume\
+                   (user_slot PRIMARY KEY, strategy text, stat text, aptitude text, healing real)")
+        data.commit()
+        data.close()
 
     @discord.slash_command()
     async def dice(self, chat):
@@ -16,7 +62,7 @@ class Somethings(discord.Cog):
     @discord.slash_command()
     async def number(self, chat, *, digits=int()):
         if digits > 2000:
-            await chat.send('자리수는 2000보다 클 수 없습니다.')
+            await chat.send('자릿수는 2000보다 클 수 없습니다.')
             return
         your_number = ""
         while digits >= 1:
@@ -58,28 +104,21 @@ class Somethings(discord.Cog):
 
     condition_dic = {"최상": 1.1, "양호": 1.05, "보통": 1, "저조": 0.95, "최악": 0.9}
 
-    def dist_accel(self, aptitude):
-        if aptitude == "E":
-            return 0.6
-        elif aptitude == "F":
-            return 0.5
-        elif aptitude == "G":
-            return 0.4
-        else:
-            return 1
-
     @discord.slash_command(description="엑셀계산기 이식", guild_ids=[907936221446148138, 792068683580440587])
     async def stat(self, chat,
                    strategy: discord.Option(str, "각질을 선택하세요.", choices=["도주", "선행", "선입", "추입"]),
-                   race_distance: discord.Option(int, "경주거리를 입력하세요."),
+                   race_distance: discord.Option(int, "경주 거리를 입력하세요."),
                    speed: discord.Option(int, "스피드 스탯을 입력하세요."),
                    power: discord.Option(int, "파워 스탯을 입력하세요."),
                    stamina: discord.Option(int, "스태미나 스탯을 입력하세요."),
                    grit: discord.Option(int, "근성 스탯을 입력하세요."),
                    intelligence: discord.Option(int, "지능 스탯을 입력하세요."),
-                   track_aptitude: discord.Option(str, "마장 적성을 선택하세요.", choices=["S", "A", "B", "C", "D", "E", "F", "G"]),
-                   distance_aptitude: discord.Option(str, "거리 적성을 선택하세요.", choices=["S", "A", "B", "C", "D", "E", "F", "G"]),
-                   strategy_aptitude: discord.Option(str, "각질 적성을 선택하세요.", choices=["S", "A", "B", "C", "D", "E", "F", "G"]),
+                   track_aptitude: discord.Option(str, "마장 적성을 선택하세요.",
+                                                  choices=["S", "A", "B", "C", "D", "E", "F", "G"]),
+                   distance_aptitude: discord.Option(str, "거리 적성을 선택하세요.",
+                                                     choices=["S", "A", "B", "C", "D", "E", "F", "G"]),
+                   strategy_aptitude: discord.Option(str, "각질 적성을 선택하세요.",
+                                                     choices=["S", "A", "B", "C", "D", "E", "F", "G"]),
                    condition: discord.Option(str, "컨디션을 선택하세요.", choices=["최상", "양호", "보통", "저조", "최악"]),
                    healing: discord.Option(float, "회복량을 입력하세요.(%)")):
 
@@ -91,34 +130,87 @@ class Somethings(discord.Cog):
         condition_multiplier = self.condition_dic.get(condition)
 
         stats = [int(x * condition_multiplier) for x in stats]
-        multi_intel = int(stats[4] * intelligence_multiplier)
+        stats[4] = stats[4] * intelligence_multiplier
         standard_speed = 22 - race_distance / 1000
 
         speeds = [round(standard_speed * strategy_list[0][0], 2),
                   round(standard_speed * strategy_list[0][1], 2),
-                  round(standard_speed * (strategy_list[0][2] + 0.01) * 1.05 + math.sqrt(500 * stats[0]) * speed_multiplier * 0.002 * 2.05, 2)]
+                  round(standard_speed * (strategy_list[0][2] + 0.01) * 1.05 + math.sqrt(
+                      500 * stats[0]) * speed_multiplier * 0.002 * 2.05, 2)]
         basic_acceleration = 0.0006 * math.sqrt(500 * stats[1] * acceleration_multiplier)
         accels = [round(basic_acceleration * strategy_list[1][0], 4),
                   round(basic_acceleration * strategy_list[1][1], 4),
                   round(basic_acceleration * strategy_list[1][2], 4)]
         basic_hp = race_distance + stats[2] * strategy_list[2] * 0.8
         hp = round(basic_hp * (1 + healing * 0.01), 1)
-        if 100 - 9000 / multi_intel < 20:
+        if 100 - 9000 / stats[4] < 20:
             skill_activation = 20
         else:
-            skill_activation = round(100 - 9000 / multi_intel, 2)
-        excitement_percentage = round((6.5 / math.log10(multi_intel * 0.1 + 1)) ** 2, 2)
+            skill_activation = round(100 - 9000 / stats[4], 2)
+        excitement_percentage = round((6.5 / math.log10(stats[4] * 0.1 + 1)) ** 2, 2)
 
-        embed = discord.Embed(title="status", color=0xffffff)
-        embed.add_field(name='우마무스메 정보', value=f"경주 거리 : {race_distance} | 각질 : {strategy} | 스탯 : {stats} | "
-                                               f"적성 : {track_aptitude}, {distance_aptitude}, {strategy_aptitude} | "
-                                               f"컨디션 : {condition} | 회복량 : {healing}%", inline=False)
-        embed.add_field(name='최고속도', value=f'초반 : {speeds[0]}m/s | 중반 : {speeds[1]}m/s | 스퍼트 : {speeds[2]}m/s', inline=False)
-        embed.add_field(name='가속도', value=f'초반 : {accels[0]}m/s² | 중반 : {accels[1]}m/s² | 스퍼트 : {accels[2]}m/s²', inline=False)
+        embed = discord.Embed(title="성능 계산 결과", color=0xffffff)
+        embed.add_field(name='우마무스메 정보',
+                        value=f"경주 거리 : {race_distance} | 각질 : {strategy} | 스탯 : {stats} | \
+                              적성 : {track_aptitude}, {distance_aptitude}, {strategy_aptitude} | \
+                              컨디션 : {condition} | 회복량 : {healing}%", inline=False)
+        embed.add_field(name='최고 속도', value=f'초반 : {speeds[0]}m/s | 중반 : {speeds[1]}m/s | 스퍼트 : {speeds[2]}m/s',
+                        inline=False)
+        embed.add_field(name='가속도', value=f'초반 : {accels[0]}m/s² | 중반 : {accels[1]}m/s² | 스퍼트 : {accels[2]}m/s²',
+                        inline=False)
         embed.add_field(name='지구력', value=str(hp), inline=False)
         embed.add_field(name='스킬 발동률', value=str(skill_activation) + "%", inline=False)
         embed.add_field(name='흥분 확률', value=str(excitement_percentage) + "%", inline=False)
         await chat.respond(embed=embed)
+
+    @discord.slash_command(description="우마무스메 저장", guild_ids=[907936221446148138, 792068683580440587])
+    async def save(self, chat,
+                   slot: discord.Option(str, "저장할 슬롯을 골라주세요.", choices=["1", "2", "3", "4", "5"]),
+                   strategy: discord.Option(str, "각질을 선택하세요.", choices=["도주", "선행", "선입", "추입"]),
+                   speed: discord.Option(int, "스피드 스탯을 입력하세요."),
+                   power: discord.Option(int, "파워 스탯을 입력하세요."),
+                   stamina: discord.Option(int, "스태미나 스탯을 입력하세요."),
+                   grit: discord.Option(int, "근성 스탯을 입력하세요."),
+                   intelligence: discord.Option(int, "지능 스탯을 입력하세요."),
+                   track_aptitude: discord.Option(str, "마장 적성을 선택하세요.",
+                                                  choices=["S", "A", "B", "C", "D", "E", "F", "G"]),
+                   distance_aptitude: discord.Option(str, "거리 적성을 선택하세요.",
+                                                     choices=["S", "A", "B", "C", "D", "E", "F", "G"]),
+                   strategy_aptitude: discord.Option(str, "각질 적성을 선택하세요.",
+                                                     choices=["S", "A", "B", "C", "D", "E", "F", "G"]),
+                   healing: discord.Option(float, "회복량을 입력하세요.(%)")):
+
+        stats = [speed, power, stamina, grit, intelligence]
+        aptitudes = track_aptitude + distance_aptitude + strategy_aptitude
+        data = sqlite3.connect("data/user_slot.db")
+        DB = data.cursor()
+        DB.execute("SELECT * FROM umamusume WHERE user_slot=?", (str(chat.author.id) + "/" + slot,))
+        exist = DB.fetchone()
+        global db_edit1
+        global db_edit2
+        global embed_text
+        db_edit1 = "DELETE FROM umamusume WHERE user_slot='%s'" % (str(chat.author.id) + "/" + slot)
+        db_edit2 = "INSERT INTO umamusume VALUES('%s','%s','%s','%s','%s')" % \
+                   (str(chat.author.id) + "/" + slot, strategy, str(stats), aptitudes, healing)
+        embed_text = f"저장 슬롯 : {slot} | 각질 : {strategy} | 스탯 : {stats} | \
+                                          적성 : {track_aptitude}, {distance_aptitude}, {strategy_aptitude} | \
+                                          회복량 : {healing}%"
+        if exist:
+            print(db_edit1)
+            print(db_edit2)
+            embed = discord.Embed(title="덮어씌우시겠습니까?", color=0xffffff)
+            embed.add_field(name='기존 우마무스메 정보',
+                            value=f"저장 슬롯 : {exist[0][19:]} | 각질 : {exist[1]} | 스탯 : {exist[2]} | \
+                                          적성 : {exist[3]} | 회복량 : {exist[4]}%", inline=False)
+            embed.add_field(name='신규 우마무스메 정보', value=embed_text, inline=False)
+            await chat.respond(embed=embed, view=YesNo())
+        else:
+            DB.execute(db_edit2)
+            embed = discord.Embed(title="저장 성공", color=0xffffff)
+            embed.add_field(name='우마무스메 정보', value=embed_text, inline=False)
+            await chat.respond(embed=embed)
+        data.commit()
+        data.close()
 
 
 def setup(client):
