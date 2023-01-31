@@ -191,8 +191,6 @@ class Somethings(discord.Cog):
                                           적성 : {track_aptitude}, {distance_aptitude}, {strategy_aptitude} | \
                                           회복량 : {healing}%"
         if exist:
-            print(db_edit1)
-            print(db_edit2)
             embed = discord.Embed(title="덮어씌우시겠습니까?", color=0xffffff)
             embed.add_field(name='기존 우마무스메 정보',
                             value=f"저장 슬롯 : {str(exist[1])} | 각질 : {exist[2]} | 스탯 : {exist[3]} | \
