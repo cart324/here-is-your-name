@@ -3,6 +3,7 @@ from discord.ext import commands
 import random
 import math
 import sqlite3
+import os
 
 
 def dist_accel(aptitude):
@@ -133,6 +134,11 @@ class Somethings(discord.Cog):
                 name = name + plus
             your_name = your_name + "\n" + name
         await chat.respond(your_name)
+
+    @discord.slash_command(guild_ids=[907936221446148138, 792068683580440587])
+    async def clear_db(self, chat):
+        os.remove('data/user_slot.db')
+        await chat.respond("데이터베이스가 초기화 되었습니다.")
 
     @discord.slash_command(description="엑셀계산기 이식", guild_ids=[907936221446148138, 792068683580440587])
     async def stat(self, chat,
