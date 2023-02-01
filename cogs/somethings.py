@@ -265,7 +265,8 @@ class Somethings(discord.Cog):
             await chat.respond(embed=embed)
         else:
             await chat.respond(content="저장된 정보가 없습니다.")
-
+        data.close()
+        
     @discord.slash_command(description="우마무스메 비교", guild_ids=[907936221446148138, 792068683580440587])
     async def compare(self, chat,
                       race_distance: discord.Option(int, "경주 거리를 입력하세요."),
@@ -303,6 +304,7 @@ class Somethings(discord.Cog):
             await chat.respond(embed=embed)
         else:
             await chat.respond(content="저장된 정보가 없습니다.")
+        data.close()
 
 
 def setup(client):
