@@ -4,6 +4,7 @@ import random
 import math
 import sqlite3
 import os
+import matplotlib.pyplot as plt
 
 
 def dist_accel(aptitude):
@@ -15,6 +16,56 @@ def dist_accel(aptitude):
         return 0.4
     else:
         return 1
+
+
+def tracks(track_type, track_condition):
+    if track_condition == "포화":
+        return 1.02
+    elif track_condition == "다습":
+        if track_type == "잔디":
+            return 1.02
+        else:
+            return 1.01
+    else:
+        return 1
+
+
+def acceleration(start, target, accel, standard, multiplier, is_mid):
+    if not is_mid:
+        time = (target - start) / accel
+        move = (target + start) / 2 * time
+        hp_lost = 20*multiplier*((accel*time + start-standard+12)**3 - (start-standard+12)**3) / (3*accel*144)
+    else:
+        if target < start:
+            accel = -0.8
+        time = (target - start) / accel
+        move = (target + start) / 2 * time
+        hp_lost = 20 * multiplier * ((target - standard + 12)**3 - (start - standard + 12)**3) / (3 * accel * 144)
+    return time, move, hp_lost
+
+
+def constant(speed, move, standard, multiplier):
+    if move <= 0:
+        return 0, 0
+    else:
+        time = move / speed
+        hp_lost = 20 * multiplier * (speed - standard + 12)**2 * time / 144
+        return time, hp_lost
+
+
+def spurt_cal(remain_hp, race_dist, end_multi, standard, end, spurt):
+    spurt_dist = ((remain_hp - (race_dist/3 - 60) * 20 * end_multi * (end - standard + 12)**2 / (end * 144)) /
+                  (20*end_multi*((spurt-standard+12)**2 / (spurt*144) - (end-standard+12)**2 / (end*144)))) + 60
+    return spurt_dist
+
+
+def pretreatment(data_list):
+    data1, data2, data3 = [], [], []
+    for data in data_list:
+        data1.append(data[0])
+        data2.append(data[1])
+        data3.append(data[2])
+    return data1, data2, data3
 
 
 # [속도 보정값, 가속도 보정값, 지구력 보정값]
@@ -30,7 +81,7 @@ strategy_aptitude_dic = {"S": 1.1, "A": 1, "B": 0.85, "C": 0.75, "D": 0.6, "E": 
 condition_dic = {"최상": 1.1, "양호": 1.05, "보통": 1, "저조": 0.95, "최악": 0.9}
 
 
-def calculate(strategy, race_distance, stats, aptitudes, condition, healing):
+def calculate(strategy, race_distance, track_type, track_condition, stats, aptitudes, condition, healing):
     strategy_list = strategy_dic.get(strategy)
     stats = stats[1:-1].split(", ")
     aptitudes = aptitudes.split(", ")
@@ -38,28 +89,103 @@ def calculate(strategy, race_distance, stats, aptitudes, condition, healing):
     speed_multiplier = distance_aptitude_dic.get(aptitudes[1])
     intelligence_multiplier = strategy_aptitude_dic.get(aptitudes[2])
     condition_multiplier = condition_dic.get(condition)
-
     stats = map(int, stats)
     stats = [int(x * condition_multiplier) for x in stats]
     stats[4] = int(stats[4] * intelligence_multiplier)
     standard_speed = 22 - race_distance / 1000
 
-    speeds = [round(standard_speed * strategy_list[0][0], 2),
-              round(standard_speed * strategy_list[0][1], 2),
-              round(standard_speed * (strategy_list[0][2] + 0.01) * 1.05 + math.sqrt(
-                  500 * stats[0]) * speed_multiplier * 0.002 * 2.05, 2)]
+    speeds = [standard_speed * strategy_list[0][0],
+              standard_speed * strategy_list[0][1],
+              standard_speed * strategy_list[0][2] + math.sqrt(500 * stats[0]) * speed_multiplier * 0.002,
+              standard_speed * (strategy_list[0][2] + 0.01) * 1.05 + math.sqrt(500 * stats[0])
+              * speed_multiplier * 0.002 * 2.05]
     basic_acceleration = 0.0006 * math.sqrt(500 * stats[1]) * acceleration_multiplier
-    accels = [round(basic_acceleration * strategy_list[1][0], 4),
-              round(basic_acceleration * strategy_list[1][1], 4),
-              round(basic_acceleration * strategy_list[1][2], 4)]
+    accels = [basic_acceleration * strategy_list[1][0],
+              basic_acceleration * strategy_list[1][1],
+              basic_acceleration * strategy_list[1][2]]
     basic_hp = race_distance + stats[2] * strategy_list[2] * 0.8
-    hp = round(basic_hp * (1 + healing * 0.01), 1)
+    hp = basic_hp * (1 + healing * 0.01)
     if 100 - 9000 / stats[4] < 20:
         skill_activation = 20
     else:
         skill_activation = round(100 - 9000 / stats[4], 2)
     excitement_percentage = round((6.5 / math.log10(stats[4] * 0.1 + 1)) ** 2, 2)
-    return speeds, accels, hp, skill_activation, excitement_percentage
+    track_hp_multiplier = tracks(track_type, track_condition)
+    end_hp_multiplier = track_hp_multiplier * (1 + (200 / math.sqrt(600 * stats[3])))
+
+    # [목표 속도, 가속도]
+    accel_factors = [[speeds[0], accels[0]], [speeds[1], accels[1]], [speeds[2], accels[2]], [speeds[3], accels[2]]]
+    moves = [race_distance / 6, race_distance / 3 * 2, "종반", "스퍼트"]
+    is_mids = [False, True, False, False]
+    hp_multipliers = [track_hp_multiplier, track_hp_multiplier, end_hp_multiplier, end_hp_multiplier]
+    graphs = []
+    time = 0
+    remain_hp = hp
+    distance = 0
+    current_speed = 3
+    spurt_dist = 0
+
+    graphs.append([distance, current_speed, remain_hp])  # 스타트 대쉬
+    time += (standard_speed * 0.85 - 3) / (24 + accels[0])
+    distance += (standard_speed * 0.85 + 3) / 2 * time
+    remain_hp -= 20 * track_hp_multiplier * time
+    current_speed = standard_speed * 0.85
+    graphs.append([distance, current_speed, remain_hp])
+    for accel_factor, move, is_mid, hp_multiplier in zip(accel_factors, moves, is_mids, hp_multipliers):
+        if move == "종반":
+            spurt_dist = spurt_cal(remain_hp, race_distance, end_hp_multiplier, standard_speed, speeds[2], speeds[3])
+        cal = acceleration(current_speed, accel_factor[0], accel_factor[1], standard_speed, hp_multiplier, is_mid)
+        time += cal[0]
+        distance += cal[1]
+        remain_hp -= cal[2]
+        current_speed = accel_factor[0]
+        graphs.append([distance, current_speed, remain_hp])
+
+        if move == "종반":
+            if spurt_dist >= (race_distance - distance):
+                move = distance
+            else:
+                move = spurt_dist - distance
+        elif move == "스퍼트":
+            consume_hp = 20*end_hp_multiplier*(speeds[3]-standard_speed+12)**2 * (race_distance-distance)/speeds[3]/144
+            if remain_hp < consume_hp:
+                time = remain_hp / (20 * end_hp_multiplier * (speeds[3] - standard_speed + 12) ** 2 / 144)
+                distance += speeds[3] * time
+                remain_hp = 0
+                graphs.append([distance, current_speed, remain_hp])
+                break
+            else:
+                move = race_distance
+        move -= distance
+        cal = constant(current_speed, move, standard_speed, hp_multiplier)
+        time += cal[0]
+        distance += move
+        remain_hp -= cal[1]
+        graphs.append([distance, current_speed, remain_hp])
+
+    if remain_hp == 0:
+        time = (-speeds[3] + math.sqrt(speeds[3]**2 + 2 * -1.2 * (race_distance - distance))) / -1.2
+        distance = race_distance
+        current_speed -= 1.2 * time
+        graphs.append([distance, current_speed, remain_hp])
+
+    graph_x, graph_y1, graph_y2 = pretreatment(graphs)
+    plt.rcParams['figure.figsize'] = (22, 9)
+    plt.rcParams['font.size'] = 20
+    fig, speed_ax = plt.subplots()
+    speed_ax.plot(graph_x, graph_y1, color='blue')
+    speed_ax.set_xlim([0, race_distance])
+    speed_ax.set_ylim([0, 25])
+    speed_ax.grid(True, axis='y')
+    speed_ax.tick_params(axis='both', direction='in', length=5)
+    speed_ax.axvline(race_distance / 6, 0, 1, color='gray', linestyle='solid', linewidth=2)
+    speed_ax.axvline(race_distance / 3 * 2, 0, 1, color='gold', linestyle='solid', linewidth=2)
+    hp_ax = speed_ax.twinx()
+    hp_ax.set_ylim([0, hp])
+    hp_ax.plot(graph_x, graph_y2, color='orange')
+    speeds = [round(x, 3) for x in speeds]
+    accels = [round(x, 3) for x in accels]
+    return speeds, accels, hp, skill_activation, excitement_percentage, plt
 
 
 class YesNo(discord.ui.View):
@@ -144,6 +270,8 @@ class Somethings(discord.Cog):
     async def stat(self, chat,
                    strategy: discord.Option(str, "각질을 선택하세요.", choices=["도주", "선행", "선입", "추입"]),
                    race_distance: discord.Option(int, "경주 거리를 입력하세요."),
+                   track_type: discord.Option(str, "마장 종류를 선택하세요.", choices=["잔디", "더트"]),
+                   track_condition: discord.Option(str, "마장 상태를 선택하세요.", choices=["양호", "다습", "포화", "불량"]),
                    speed: discord.Option(int, "스피드 스탯을 입력하세요."),
                    power: discord.Option(int, "파워 스탯을 입력하세요."),
                    stamina: discord.Option(int, "스태미나 스탯을 입력하세요."),
@@ -160,20 +288,23 @@ class Somethings(discord.Cog):
 
         stats = str([speed, power, stamina, grit, intelligence])
         aptitudes = track_aptitude + ", " + distance_aptitude + ", " + strategy_aptitude
-        speeds, accels, hp, skill, excitement = calculate(strategy, race_distance, stats, aptitudes, condition, healing)
-
+        speeds, accels, hp, skill, excitement, plt = \
+            calculate(strategy, race_distance, stats, track_type, track_condition, aptitudes, condition, healing)
+        plt.savefig(f'{chat.author.id}.png')
+        file = discord.File(f'{chat.author.id}.png', spoiler=False)
         embed = discord.Embed(title="성능 계산 결과", color=0xffffff)
         embed.add_field(name='우마무스메 정보',
                         value=f"경주 거리 : {race_distance} | 각질 : {strategy} | 스탯 : {stats} | \
                               적성 : {aptitude} | 컨디션 : {condition} | 회복량 : {healing}%", inline=False)
-        embed.add_field(name='최고 속도', value=f'초반 : {speeds[0]}m/s | 중반 : {speeds[1]}m/s | 스퍼트 : {speeds[2]}m/s',
-                        inline=False)
+        embed.add_field(name='최고 속도', value=f'초반 : {speeds[0]}m/s | 중반 : {speeds[1]}m/s | 종반 : {speeds[2]}m/s \
+                                            | 스퍼트 : {speeds[3]}m/s', inline=False)
         embed.add_field(name='가속도', value=f'초반 : {accels[0]}m/s² | 중반 : {accels[1]}m/s² | 스퍼트 : {accels[2]}m/s²',
                         inline=False)
         embed.add_field(name='지구력', value=str(hp), inline=False)
         embed.add_field(name='스킬 발동률', value=str(skill) + "%", inline=False)
         embed.add_field(name='흥분 확률', value=str(excitement) + "%", inline=False)
-        await chat.respond(embed=embed)
+        await chat.respond(embed=embed, file=file)
+        os.remove(f'{chat.author.id}.png')
 
     @discord.slash_command(description="우마무스메 저장", guild_ids=[907936221446148138, 792068683580440587])
     async def save(self, chat,
@@ -224,6 +355,8 @@ class Somethings(discord.Cog):
     async def load(self, chat,
                    slot: discord.Option(int, "불러올 슬롯을 골라주세요.", choices=[1, 2, 3, 4, 5]),
                    race_distance: discord.Option(int, "경주 거리를 입력하세요."),
+                   track_type: discord.Option(str, "마장 종류를 선택하세요.", choices=["잔디", "더트"]),
+                   track_condition: discord.Option(str, "마장 상태를 선택하세요.", choices=["양호", "다습", "포화", "불량"]),
                    condition: discord.Option(str, "컨디션을 선택하세요.", choices=["최상", "양호", "보통", "저조", "최악"]),
                    healing: discord.Option(float, "역병을 입력하세요.(%)")):
 
@@ -233,20 +366,23 @@ class Somethings(discord.Cog):
         load_data = DB.fetchone()
         if load_data:
             healing = load_data[5] - healing
-            speeds, accels, hp, skill, excitement = calculate(load_data[2], race_distance, load_data[3], load_data[4],
-                                                              condition, healing)
+            speeds, accels, hp, skill, excitement, plt = calculate(load_data[2], race_distance, track_type, track_condition,
+                                                                   load_data[3], load_data[4], condition, healing)
+            plt.savefig(f'{chat.author.id}.png')
+            file = discord.File(f'{chat.author.id}.png', spoiler=False)
             embed = discord.Embed(title="성능 계산 결과", color=0xffffff)
             embed.add_field(name='우마무스메 정보',
-                            value=f"저장 슬롯 : {slot} | 경주 거리 : {race_distance} | 각질 : {load_data[2]} | 스탯 : {load_data[3]} | \
-                                          적성 : {load_data[4]} | 컨디션 : {condition} | 회복량 : {healing}%", inline=False)
-            embed.add_field(name='최고 속도', value=f'초반 : {speeds[0]}m/s | 중반 : {speeds[1]}m/s | 스퍼트 : {speeds[2]}m/s',
-                            inline=False)
+                            value=f"저장 슬롯 : {slot} | 경주 거리 : {race_distance} | 각질 : {load_data[2]} | 스탯 : {load_data[3]} \
+                                    | 적성 : {load_data[4]} | 컨디션 : {condition} | 회복량 : {healing}%", inline=False)
+            embed.add_field(name='최고 속도', value=f'초반 : {speeds[0]}m/s | 중반 : {speeds[1]}m/s | 종반 : {speeds[2]}m/s \
+                                                    | 스퍼트 : {speeds[3]}m/s', inline=False)
             embed.add_field(name='가속도', value=f'초반 : {accels[0]}m/s² | 중반 : {accels[1]}m/s² | 스퍼트 : {accels[2]}m/s²',
                             inline=False)
             embed.add_field(name='지구력', value=str(hp), inline=False)
             embed.add_field(name='스킬 발동률', value=str(skill) + "%", inline=False)
             embed.add_field(name='흥분 확률', value=str(excitement) + "%", inline=False)
-            await chat.respond(embed=embed)
+            await chat.respond(embed=embed, file=file)
+            os.remove(f'{chat.author.id}.png')
         else:
             await chat.respond(content=f"{slot}번 슬롯에 저장된 정보가 없습니다.")
         data.close()
@@ -266,7 +402,7 @@ class Somethings(discord.Cog):
         else:
             await chat.respond(content="저장된 정보가 없습니다.")
         data.close()
-        
+
     @discord.slash_command(description="우마무스메 비교", guild_ids=[907936221446148138, 792068683580440587])
     async def compare(self, chat,
                       race_distance: discord.Option(int, "경주 거리를 입력하세요."),
@@ -282,9 +418,11 @@ class Somethings(discord.Cog):
         DB.execute("SELECT * FROM umamusume WHERE user_id=? and slot=?", (chat.author.id, slot2))
         slot2_data = DB.fetchone()
         if slot1_data and slot2_data:
-            slot1_cal = calculate(slot1_data[2], race_distance, slot1_data[3], slot1_data[4], condition1, slot1_data[5])
+            slot1_cal = calculate(slot1_data[2], race_distance, "잔디", "양호",
+                                  slot1_data[3], slot1_data[4], condition1, slot1_data[5])
             speeds1, accels1 = slot1_cal[0], slot1_cal[1]
-            slot2_cal = calculate(slot2_data[2], race_distance, slot2_data[3], slot2_data[4], condition2, slot2_data[5])
+            slot2_cal = calculate(slot2_data[2], race_distance, "잔디", "양호",
+                                  slot2_data[3], slot2_data[4], condition2, slot2_data[5])
             speeds2, accels2 = slot2_cal[0], slot2_cal[1]
 
             embed = discord.Embed(title="성능 비교 결과", color=0xffffff)
@@ -296,11 +434,12 @@ class Somethings(discord.Cog):
                                     스탯 : {slot2_data[3]} | 적성 : {slot2_data[4]} | 컨디션 : {condition1} | \
                                     회복량 : {slot2_data[5]}%", inline=False)
             embed.add_field(name='최고 속도 비교',
-                            value=f'초반 : {speeds1[0]}m/s | 중반 : {speeds1[1]}m/s | 스퍼트 : {speeds1[2]}m/s\n\n \
-                                    초반 : {speeds2[0]}m/s | 중반 : {speeds2[1]}m/s | 스퍼트 : {speeds2[2]}m/s', inline=False)
+                            value=f'초반 : {speeds1[0]}m/s | 중반 : {speeds1[1]}m/s | 스퍼트 : {speeds1[3]}m/s\n\n \
+                                    초반 : {speeds2[0]}m/s | 중반 : {speeds2[1]}m/s | 스퍼트 : {speeds2[3]}m/s', inline=False)
             embed.add_field(name='가속도 비교',
                             value=f'초반 : {accels1[0]}m/s² | 중반 : {accels1[1]}m/s² | 스퍼트 : {accels1[2]}m/s²\n\n \
-                                    초반 : {accels2[0]}m/s² | 중반 : {accels2[1]}m/s² | 스퍼트 : {accels2[2]}m/s²', inline=False)
+                                    초반 : {accels2[0]}m/s² | 중반 : {accels2[1]}m/s² | 스퍼트 : {accels2[2]}m/s²',
+                            inline=False)
             await chat.respond(embed=embed)
         else:
             await chat.respond(content="저장된 정보가 없습니다.")
