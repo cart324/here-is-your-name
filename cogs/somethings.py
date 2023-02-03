@@ -358,14 +358,14 @@ class Somethings(discord.Cog):
                    track_type: discord.Option(str, "마장 종류를 선택하세요.", choices=["잔디", "더트"]),
                    track_condition: discord.Option(str, "마장 상태를 선택하세요.", choices=["양호", "다습", "포화", "불량"]),
                    condition: discord.Option(str, "컨디션을 선택하세요.", choices=["최상", "양호", "보통", "저조", "최악"]),
-                   healing: discord.Option(float, "역병을 입력하세요.(%)")):
+                   drain: discord.Option(float, "역병을 입력하세요.(%)")):
 
         data = sqlite3.connect("data/user_slot.db")
         DB = data.cursor()
         DB.execute("SELECT * FROM umamusume WHERE user_id=? and slot=?", (chat.author.id, slot))
         load_data = DB.fetchone()
         if load_data:
-            healing = load_data[5] - healing
+            healing = load_data[5] - drain
             speeds, accels, hp, skill, excitement, plt = calculate(load_data[2], race_distance, track_type, track_condition,
                                                                    load_data[3], load_data[4], condition, healing)
             plt.savefig(f'{chat.author.id}.png')
