@@ -99,11 +99,11 @@ def calculate(strategy, race_distance, track_type, track_condition, stats, aptit
               standard_speed * strategy_list[0][2] + math.sqrt(500 * stats[0]) * speed_multiplier * 0.002,
               standard_speed * (strategy_list[0][2] + 0.01) * 1.05 + math.sqrt(500 * stats[0])
               * speed_multiplier * 0.002 * 2.05]
-    basic_acceleration = 0.0006 * math.sqrt(500 * stats[1]) * acceleration_multiplier
+    basic_acceleration = 0.0006 * math.sqrt(500 * stats[2]) * acceleration_multiplier
     accels = [basic_acceleration * strategy_list[1][0],
               basic_acceleration * strategy_list[1][1],
               basic_acceleration * strategy_list[1][2]]
-    basic_hp = race_distance + stats[2] * strategy_list[2] * 0.8
+    basic_hp = race_distance + stats[1] * strategy_list[2] * 0.8
     hp = basic_hp * (1 + healing * 0.01)
     if 100 - 9000 / stats[4] < 20:
         skill_activation = 20
@@ -273,8 +273,8 @@ class Somethings(discord.Cog):
                    track_type: discord.Option(str, "마장 종류를 선택하세요.", choices=["잔디", "더트"]),
                    track_condition: discord.Option(str, "마장 상태를 선택하세요.", choices=["양호", "다습", "포화", "불량"]),
                    speed: discord.Option(int, "스피드 스탯을 입력하세요."),
-                   power: discord.Option(int, "파워 스탯을 입력하세요."),
                    stamina: discord.Option(int, "스태미나 스탯을 입력하세요."),
+                   power: discord.Option(int, "파워 스탯을 입력하세요."),
                    grit: discord.Option(int, "근성 스탯을 입력하세요."),
                    intelligence: discord.Option(int, "지능 스탯을 입력하세요."),
                    track_aptitude: discord.Option(str, "마장 적성을 선택하세요.",
@@ -286,16 +286,16 @@ class Somethings(discord.Cog):
                    condition: discord.Option(str, "컨디션을 선택하세요.", choices=["최상", "양호", "보통", "저조", "최악"]),
                    healing: discord.Option(float, "회복량을 입력하세요.(%)")):
 
-        stats = str([speed, power, stamina, grit, intelligence])
+        stats = str([speed, stamina, power, grit, intelligence])
         aptitudes = track_aptitude + ", " + distance_aptitude + ", " + strategy_aptitude
         speeds, accels, hp, skill, excitement, plt = \
-            calculate(strategy, race_distance, stats, track_type, track_condition, aptitudes, condition, healing)
+            calculate(strategy, race_distance, track_type, track_condition, stats, aptitudes, condition, healing)
         plt.savefig(f'{chat.author.id}.png')
         file = discord.File(f'{chat.author.id}.png', spoiler=False)
         embed = discord.Embed(title="성능 계산 결과", color=0xffffff)
         embed.add_field(name='우마무스메 정보',
                         value=f"경주 거리 : {race_distance} | 각질 : {strategy} | 스탯 : {stats} | \
-                              적성 : {aptitude} | 컨디션 : {condition} | 회복량 : {healing}%", inline=False)
+                              적성 : {aptitudes} | 컨디션 : {condition} | 회복량 : {healing}%", inline=False)
         embed.add_field(name='최고 속도', value=f'초반 : {speeds[0]}m/s | 중반 : {speeds[1]}m/s | 종반 : {speeds[2]}m/s \
                                             | 스퍼트 : {speeds[3]}m/s', inline=False)
         embed.add_field(name='가속도', value=f'초반 : {accels[0]}m/s² | 중반 : {accels[1]}m/s² | 스퍼트 : {accels[2]}m/s²',
@@ -311,8 +311,8 @@ class Somethings(discord.Cog):
                    slot: discord.Option(int, "저장할 슬롯을 골라주세요.", choices=[1, 2, 3, 4, 5]),
                    strategy: discord.Option(str, "각질을 선택하세요.", choices=["도주", "선행", "선입", "추입"]),
                    speed: discord.Option(int, "스피드 스탯을 입력하세요."),
-                   power: discord.Option(int, "파워 스탯을 입력하세요."),
                    stamina: discord.Option(int, "스태미나 스탯을 입력하세요."),
+                   power: discord.Option(int, "파워 스탯을 입력하세요."),
                    grit: discord.Option(int, "근성 스탯을 입력하세요."),
                    intelligence: discord.Option(int, "지능 스탯을 입력하세요."),
                    track_aptitude: discord.Option(str, "마장 적성을 선택하세요.",
@@ -323,7 +323,7 @@ class Somethings(discord.Cog):
                                                      choices=["S", "A", "B", "C", "D", "E", "F", "G"]),
                    healing: discord.Option(float, "회복량을 입력하세요.(%)")):
 
-        stats = [speed, power, stamina, grit, intelligence]
+        stats = [speed, stamina, power, grit, intelligence]
         aptitudes = track_aptitude + ", " + distance_aptitude + ", " + strategy_aptitude
         data = sqlite3.connect("data/user_slot.db")
         DB = data.cursor()
