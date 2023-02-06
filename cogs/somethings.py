@@ -261,6 +261,17 @@ class Somethings(discord.Cog):
             your_name = your_name + "\n" + name
         await chat.respond(your_name)
 
+    @discord.slash_command(description="커맨드 사용법")
+    async def help(self, chat):
+        await chat.respond(
+            "사용법\n"
+            "`/stat` - 스탯과 레이스 정보를 입력하면 바로 성능을 보여줍니다.\n"
+            "`/save` - 스탯을 입력하여 저장할 수 있습니다.\n"
+            "`/load` - 레이스 정보를 바꾸며 성능을 볼 수 있습니다.\n"
+            "`/compare` - 두 우마무스메의 성능 차이를 비교할 수 있습니다.\n"
+            "`/view_all` - 저장된 정보를 한번에 볼 수 있습니다.", ephemeral=True
+        )
+
     @discord.slash_command(guild_ids=[907936221446148138, 792068683580440587])
     async def clear_db(self, chat):
         os.remove('data/user_slot.db')
