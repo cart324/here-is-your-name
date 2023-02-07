@@ -93,10 +93,11 @@ def calculate(strategy, race_distance, track_type, track_condition, stats, aptit
     stats = [int(x * condition_multiplier) for x in stats]
     stats[4] = int(stats[4] * intelligence_multiplier)
     standard_speed = 22 - race_distance / 1000
+    intel_avg = (stats[4]/5500*math.log10(stats[4]*0.1)-0.65/2)*0.01*standard_speed
 
-    speeds = [standard_speed * strategy_list[0][0],
-              standard_speed * strategy_list[0][1],
-              standard_speed * strategy_list[0][2] + math.sqrt(500 * stats[0]) * speed_multiplier * 0.002,
+    speeds = [standard_speed * strategy_list[0][0] + intel_avg,
+              standard_speed * strategy_list[0][1] + intel_avg,
+              standard_speed * strategy_list[0][2] + math.sqrt(500 * stats[0]) * speed_multiplier * 0.002 + intel_avg,
               standard_speed * (strategy_list[0][2] + 0.01) * 1.05 + math.sqrt(500 * stats[0])
               * speed_multiplier * 0.002 * 2.05]
     basic_acceleration = 0.0006 * math.sqrt(500 * stats[2]) * acceleration_multiplier
@@ -185,7 +186,9 @@ def calculate(strategy, race_distance, track_type, track_condition, stats, aptit
     hp_ax.plot(graph_x, graph_y2, color='orange')
     speeds = [round(x, 3) for x in speeds]
     accels = [round(x, 3) for x in accels]
-    return speeds, accels, hp, skill_activation, excitement_percentage, plt
+    hp = round(hp, 2)
+    time = round(time, 3)
+    return speeds, accels, hp, skill_activation, excitement_percentage, time, plt
 
 
 class YesNo(discord.ui.View):
@@ -218,8 +221,10 @@ class Somethings(discord.Cog):
         data = sqlite3.connect("data/user_slot.db")
         DB = data.cursor()
         DB.execute("CREATE TABLE IF NOT EXISTS umamusume\
-                   (user_id int, slot int, strategy text, stat text, aptitude text, healing real, \
-                   PRIMARY KEY (user_id, slot))")
+                    (user_id int, slot int, strategy text, stat text, aptitude text, healing real, \
+                    PRIMARY KEY (user_id, slot))")
+        DB.execute("CREATE TABLE IF NOT EXISTS skill(user_id int, skill int, type text, distance int, time int, effect real, \
+                    PRIMARY KEY (user_id, skill))")
         data.commit()
         data.close()
 
@@ -261,7 +266,7 @@ class Somethings(discord.Cog):
             your_name = your_name + "\n" + name
         await chat.respond(your_name)
 
-    @discord.slash_command(description="커맨드 사용법")
+    @discord.slash_command()
     async def help(self, chat):
         await chat.respond(
             "사용법\n"
@@ -299,7 +304,7 @@ class Somethings(discord.Cog):
 
         stats = str([speed, stamina, power, grit, intelligence])
         aptitudes = track_aptitude + ", " + distance_aptitude + ", " + strategy_aptitude
-        speeds, accels, hp, skill, excitement, plt = \
+        speeds, accels, hp, skill, excitement, time, plt = \
             calculate(strategy, race_distance, track_type, track_condition, stats, aptitudes, condition, healing)
         plt.savefig(f'{chat.author.id}.png')
         file = discord.File(f'{chat.author.id}.png', spoiler=False)
@@ -312,6 +317,7 @@ class Somethings(discord.Cog):
         embed.add_field(name='가속도', value=f'초반 : {accels[0]}m/s² | 중반 : {accels[1]}m/s² | 스퍼트 : {accels[2]}m/s²',
                         inline=False)
         embed.add_field(name='지구력', value=str(hp), inline=False)
+        embed.add_field(name='완주 시간', value=str(time) + "초", inline=False)
         embed.add_field(name='스킬 발동률', value=str(skill) + "%", inline=False)
         embed.add_field(name='흥분 확률', value=str(excitement) + "%", inline=False)
         await chat.respond(embed=embed, file=file)
@@ -377,8 +383,9 @@ class Somethings(discord.Cog):
         load_data = DB.fetchone()
         if load_data:
             healing = load_data[5] - drain
-            speeds, accels, hp, skill, excitement, plt = calculate(load_data[2], race_distance, track_type, track_condition,
-                                                                   load_data[3], load_data[4], condition, healing)
+            speeds, accels, hp, skill, excitement, time, plt = \
+                calculate(load_data[2], race_distance, track_type, track_condition,
+                          load_data[3], load_data[4], condition, healing)
             plt.savefig(f'{chat.author.id}.png')
             file = discord.File(f'{chat.author.id}.png', spoiler=False)
             embed = discord.Embed(title="성능 계산 결과", color=0xffffff)
@@ -390,6 +397,7 @@ class Somethings(discord.Cog):
             embed.add_field(name='가속도', value=f'초반 : {accels[0]}m/s² | 중반 : {accels[1]}m/s² | 스퍼트 : {accels[2]}m/s²',
                             inline=False)
             embed.add_field(name='지구력', value=str(hp), inline=False)
+            embed.add_field(name='완주 시간', value=str(time) + "초", inline=False)
             embed.add_field(name='스킬 발동률', value=str(skill) + "%", inline=False)
             embed.add_field(name='흥분 확률', value=str(excitement) + "%", inline=False)
             await chat.respond(embed=embed, file=file)
