@@ -146,12 +146,13 @@ def calculate(strategy, race_distance, track_type, track_condition, stats, aptit
             if spurt_dist >= (race_distance - distance):
                 move = distance
             else:
-                move = spurt_dist - distance
+                move = race_distance - spurt_dist
         elif move == "스퍼트":
             consume_hp = 20*end_hp_multiplier*(speeds[3]-standard_speed+12)**2 * (race_distance-distance)/speeds[3]/144
             if remain_hp < consume_hp:
-                time = remain_hp / (20 * end_hp_multiplier * (speeds[3] - standard_speed + 12) ** 2 / 144)
-                distance += speeds[3] * time
+                section_time = remain_hp / (20 * end_hp_multiplier * (speeds[3] - standard_speed + 12) ** 2 / 144)
+                time += section_time
+                distance += speeds[3] * section_time
                 remain_hp = 0
                 graphs.append([distance, current_speed, remain_hp])
                 break
@@ -165,9 +166,10 @@ def calculate(strategy, race_distance, track_type, track_condition, stats, aptit
         graphs.append([distance, current_speed, remain_hp])
 
     if remain_hp == 0:
-        time = (-speeds[3] + math.sqrt(speeds[3]**2 + 2 * -1.2 * (race_distance - distance))) / -1.2
+        section_time = (-speeds[3] + math.sqrt(speeds[3]**2 + 2 * -1.2 * (race_distance - distance))) / -1.2
+        time += section_time
         distance = race_distance
-        current_speed -= 1.2 * time
+        current_speed -= 1.2 * section_time
         graphs.append([distance, current_speed, remain_hp])
 
     graph_x, graph_y1, graph_y2 = pretreatment(graphs)
