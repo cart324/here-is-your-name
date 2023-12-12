@@ -1,23 +1,14 @@
 import discord
 from discord.ext import commands
-import asyncio
 import os
 import sys
 import shutil
 import stat
 import traceback
-import time
 
 client = discord.Bot(intents=discord.Intents.all())
 
-with open('token.txt', 'r') as f:
-    token = f.read()
-    
-
-async def main():
-    async with client:
-        await client.load_extension("cogs.Inspector")
-        await client.start(token)
+client.load_extension("cogs.somethings")
 
 
 def on_rm_error(func, path, exc_info):
@@ -32,8 +23,6 @@ paths_list = [["here-is-your-name/cogs", "cogs"]]  # [옮길 파일 위치, 옮�
 async def restart(ctx):
     try:
         await ctx.respond('봇이 재시작됩니다.')
-        now = str(time.strftime('%Y.%m.%d %H:%M:%S - '))
-        print(now + "Received restart command, user = " + ctx.author.name)
         if os.path.exists("here-is-your-name"):
             shutil.rmtree("here-is-your-name", onerror=on_rm_error)
         os.system("git clone https://github.com/cart324/here-is-your-name")
@@ -50,4 +39,8 @@ async def restart(ctx):
         cart = client.get_user(344384179552780289)
         await cart.send("```" + "\n" "사용자 = " + ctx.author.name + "\n" + str(error_log) + "```")
 
-asyncio.run(main())
+
+with open('token.txt', 'r') as f:
+    token = f.read()
+
+client.run(token)
