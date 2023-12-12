@@ -5,6 +5,7 @@ import math
 import sqlite3
 import os
 import matplotlib.pyplot as plt
+import time
 
 
 def dist_accel(aptitude):
@@ -199,7 +200,6 @@ class YesNo(discord.ui.View):
         self.db_edit1 = db_edit1
         self.db_edit2 = db_edit2
         self.embed_text = embed_text
-        
 
     @discord.ui.button(label="네", style=discord.ButtonStyle.primary)
     async def yes(self, button, interaction):
@@ -230,10 +230,8 @@ class Somethings(discord.Cog):
                     PRIMARY KEY (user_id, skill))")
         data.commit()
         data.close()
-
         now = str(time.strftime('%Y.%m.%d %H:%M:%S - '))
-        print(now + "Data load complete")
-        print("info : this bot does not have additional log")
+        print(now + "Data load complete (Info: There is no additional log system yet)")
 
     @discord.slash_command()
     async def dice(self, chat):
@@ -472,5 +470,5 @@ class Somethings(discord.Cog):
         data.close()
 
 
-async def setup(client):
-    await client.add_cog(Somethings(client))
+def setup(client):
+    client.add_cog(Somethings(client))
